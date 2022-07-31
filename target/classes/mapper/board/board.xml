@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.teamdmc.kemie.board">
+ 
+    <resultMap type="BoardVO" id="boardResultMap">
+      <id      property="bSeq"        column="b_seq"/>
+      <result  property="bTitle"     column="b_title"/>
+      <result  property="bContents"       column="b_contents"/>
+      <result  property="bReadCnt"       column="b_readcnt"/>
+      <result  property="uNick"       column="u_nick"/>
+      <result  property="regDt"       column="reg_dt"/>
+      <result  property="uId"      column="u_id"/>
+      <result  property="modDt"      column="mod_dt"/>
+    </resultMap>
+ 
+    <!-- 검색 조건 : 10 - bTitle / 20 - bContents / 30 - bTitle + bContents / 40 - uNick -->
+    <sql id="searchCondition">
+        <where>  <!-- 조건을 타면 where절을 자동으로 붙이게~! -->
+            <choose>
+                <when test=" '10' == searchDiv and '' != searchWord ">
+                    b_title LIKE '%' || #{searchWord} || '%'
+                </when>
+                <when test=" '20' == searchDiv and '' != searchWord ">
+                    b_contents LIKE '%' || #{searchWord} || '%'
+                </when>
+                <when test=" '30' == searchDiv and '' != searchWord ">
+                    b_title LIKE '%' || #{searchWord} || '%' OR b_contents LIKE '%' || #{searchWord} || '%' 
+                </when> 
+                <when test=" '40' == searchDiv and '' != searchWord ">
+                    u_nick LIKE '%' || #{searchWord} || '%'
+                </when>
+                <when test=" '50' == searchDiv and '' != searchWord ">
+                    u_id LIKE #{searchWord}
+                </when>
+            </choose>
+        </where>
+    </sql>
+    
+    <!-- 내 글 찾기 -->
+    <select id="myBoard" parameterType="SearchVO" resultMap="boardResultMap">
+		SELECT
+		    b_seq,
+		    b_title,
+		    b_contents,
+		    b_readcnt,
+		    u_nick,
+		    reg_dt,
+		    u_id,
+		    mod_dt
+		FROM
+		    board
+		WHERE
+		    u_id = #{u_id}
+    </select>
+    
+    <!-- 조회 -->
+    <select id="doRetrieve" parameterType="SearchVO" resultMap="boardResultMap">
+        SELECT A.*, B.*
+        FROM (
+          SELECT TT1.rnum as num,
+                 TT1.b_seq,
+                 TT1.b_title,
+                 TT1.b_contents,
+                 TT1.b_readcnt,
+                 TT1.u_nick,
+                 DECODE(TO_CHAR(SYSDATE, 'YYYYMMDD'), TO_CHAR(TT1.reg_dt,'YYYYMMDD'),
+                        TO_CHAR(TT1.reg_dt, 'HH24:MI'),
+                        TO_CHAR(TT1.reg_dt, 'YYYY-MM-DD')) as "reg_dt",
+                 TT1.u_id,
+                 DECODE(TO_CHAR(SYSDATE, 'YYYYMMDD'), TO_CHAR(TT1.mod_dt, 'YYYYMMDD'),
+                    TO_CHAR(TT1.mod_dt, 'HH24:MI'),
+                    TO_CHAR(TT1.mod_dt, 'YYYY-MM-DD')) AS "mod_dt" 
+          FROM (
+              SELECT ROWNUM AS RNUM, T1.*
+              FROM (
+                 SELECT *
+                 FROM board
+                 <include refid="searchCondition" />
+              ORDER BY reg_dt DESC
+              )T1
+        WHERE ROWNUM <![CDATA[ <= #{pageSize} * (#{pageNum}-1)+#{pageSize} ]]>
+        )TT1
+      <![CDATA[ WHERE rnum >= (#{pageSize} * (#{pageNum}-1)+1) ]]>
+        )A
+        CROSS JOIN (
+        SELECT COUNT(*) AS totalCnt
+        FROM board
+        <include refid="searchCondition" />
+        )B
+    </select>
+    
+    <!-- 조회수 증가 -->
+    <update id="updateReadCnt" parameterType="BoardVO">
+        UPDATE board
+        SET b_readcnt = NVL(b_readcnt,0) + 1
+        WHERE b_seq = #{bSeq}
+    </update>
+    
+    <!-- 전체 삭제 -->
+    <delete id="deleteAll">
+        DELETE FROM board
+    </delete>
+    
+    <!-- 단건 조회 -->
+    <select id="doSelectOne" parameterType="BoardVO" resultMap="boardResultMap">
+        SELECT b_seq,                                            
+               b_title,                                            
+               b_contents,                                                                                 
+               b_readcnt,                                       
+               u_nick,                                       
+               TO_CHAR(reg_dt,'yyyy-mm-dd hh24:mi:ss') as "reg_dt",
+               u_id,    
+               TO_CHAR(mod_dt,'yyyy-mm-dd hh24:mi:ss') as "mod_dt"
+        FROM  board
+        WHERE b_seq = #{bSeq}
+    </select>
+    
+    <!-- 건수 세기 -->
+    <select id="getCount" parameterType="BoardVO" resultType="int">
+        SELECT COUNT(*) AS cnt
+        FROM board
+        WHERE b_title LIKE #{bTitle} || '%'
+    </select>
+    <!-- 테스트용으로 생성한 객체에 readcnt 기준으로 카운트 셀수 있도록 설정해두었습니다 -->
+    
+    <update id="doUpdate" parameterType="BoardVO">
+        UPDATE board
+        SET b_title = #{bTitle},
+            b_contents = #{bContents},
+            mod_dt = SYSDATE
+        WHERE u_id = #{uId}
+        AND b_seq = #{bSeq}
+    </update>
+    <!-- 게시판에서 수정 가능 항목은 제목, 내용, 수정일이기 때문에 그 외의 컬럼은 삭제했습니다! -->
+    
+    <delete id="doDelete" parameterType="BoardVO">
+        DELETE FROM board
+        WHERE u_id = #{uId}
+        AND b_seq = #{bSeq}
+    </delete>    
+    <!-- doDelete에 조건절을 uid만 넣으면 해당 작성자의 글이 모두 삭제되기 때문에 and 조건절로 seq를 함께 넣음! -->
+    
+    <!-- UserVO를 alias로 잡아두었기 때문에 사용 가능 -->
+    <insert id="doInsert" parameterType="BoardVO">
+        INSERT INTO board (
+            u_id,
+            b_title,
+            b_contents,
+            u_nick
+        ) VALUES (
+            #{uId},
+            #{bTitle},
+            #{bContents},
+            #{uNick}
+        )
+    </insert>
+    <!-- insert쿼리에 date 뺀 이유 : 디폴트값으로 SYSDATE가 들어가고 있기 때문에 굳이 안넣어도 됨! -->
+    <!-- 조회수는 디폴트값 0으로 들어가게함 -->
+</mapper>

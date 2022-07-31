@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.teamdmc.kemie.faq">
+ 
+    <resultMap type="FaqVO" id="faqResultMap">
+      <id      property="fSeq"        column="f_seq"/>
+      <result  property="fTitle"     column="f_title"/>
+      <result  property="fContents"       column="f_contents"/>
+      <result  property="fReadCnt"       column="f_readcnt"/>
+      <result  property="uId"      column="u_id"/>
+      <result  property="regDt"       column="reg_dt"/>
+    </resultMap>
+ 
+    <!-- 검색 조건 : 10 - fTitle / 20 - fContents / 30 - fTitle + fContents  -->
+    <sql id="searchCondition">
+        <where>  <!-- 조건을 타면 where절을 자동으로 붙이게~! -->
+            <choose>
+                <when test=" '10' == searchDiv and '' != searchWord ">
+                    f_title LIKE '%' || #{searchWord} || '%'
+                </when>
+                <when test=" '20' == searchDiv and '' != searchWord ">
+                    f_contents LIKE '%' || #{searchWord} || '%'
+                </when>
+                <when test=" '30' == searchDiv and '' != searchWord ">
+                    f_title LIKE '%' || #{searchWord} || '%' OR f_contents LIKE '%' || #{searchWord} || '%' 
+                </when> 
+            </choose>
+        </where>
+    </sql>
+    
+    <!-- 조회 -->
+    <select id="doRetrieve" parameterType="SearchVO" resultMap="faqResultMap">
+        SELECT A.*, B.*
+        FROM (
+          SELECT TT1.rnum as num,
+                 TT1.f_seq,
+                 TT1.f_title,
+                 TT1.f_contents,
+                 TT1.f_readcnt,
+                 TT1.u_id,
+                 DECODE(TO_CHAR(SYSDATE, 'YYYYMMDD'), TO_CHAR(TT1.reg_dt,'YYYYMMDD'),
+                        TO_CHAR(TT1.reg_dt, 'HH24:MI'),
+                        TO_CHAR(TT1.reg_dt, 'YYYY-MM-DD')) as "reg_dt"
+          FROM (
+              SELECT ROWNUM AS RNUM, T1.*
+              FROM (
+                 SELECT *
+                 FROM faq
+                 <include refid="searchCondition" />
+              ORDER BY reg_dt DESC
+              )T1
+        WHERE ROWNUM <![CDATA[ <= #{pageSize} * (#{pageNum}-1)+#{pageSize} ]]>
+        )TT1
+      <![CDATA[ WHERE rnum >= (#{pageSize} * (#{pageNum}-1)+1) ]]>
+        )A
+        CROSS JOIN (
+        SELECT COUNT(*) AS totalCnt
+        FROM faq
+        <include refid="searchCondition" />
+        )B
+    </select>
+    
+    <!-- 조회수 증가 -->
+    <update id="updateReadCnt" parameterType="FaqVO">
+        UPDATE faq
+        SET f_readcnt = NVL(f_readcnt,0) + 1
+        WHERE f_seq = #{fSeq}
+    </update>
+    
+    <!-- 전체 삭제 -->
+    <delete id="deleteAll">
+        DELETE FROM faq
+    </delete>
+    
+    <!-- 단건 조회 -->
+    <select id="doSelectOne" parameterType="FaqVO" resultMap="faqResultMap">
+        SELECT f_seq,                                            
+               f_title,                                            
+               f_contents,                                                                                 
+               f_readcnt,                                       
+               u_id,                                       
+               TO_CHAR(reg_dt,'yyyy-mm-dd hh24:mi:ss') as "reg_dt"
+        FROM  faq
+        WHERE f_seq = #{fSeq}
+    </select>
+    
+    <!-- 건수 세기 -->
+    <select id="getCount" parameterType="FaqVO" resultType="int">
+        SELECT COUNT(*) AS cnt
+        FROM faq
+        WHERE f_title LIKE #{fTitle} || '%'
+    </select>
+    <!-- 테스트용으로 생성한 객체에 readcnt 기준으로 카운트 셀수 있도록 설정해두었습니다 -->
+    
+    <update id="doUpdate" parameterType="FaqVO">
+        UPDATE faq
+        SET f_title = #{fTitle},
+            f_contents = #{fContents}
+        WHERE u_id = #{uId}
+        AND f_seq = #{fSeq}
+    </update>
+    <!-- 게시판에서 수정 가능 항목은 제목, 내용, 수정일이기 때문에 그 외의 컬럼은 삭제했습니다! -->
+    
+    <delete id="doDelete" parameterType="FaqVO">
+        DELETE FROM faq
+        WHERE u_id = #{uId}
+        AND f_seq = #{fSeq}
+    </delete>    
+    <!-- doDelete에 조건절을 uid만 넣으면 해당 작성자의 글이 모두 삭제되기 때문에 and 조건절로 seq를 함께 넣음! -->
+    
+    <!-- UserVO를 alias로 잡아두었기 때문에 사용 가능 -->
+    <insert id="doInsert" parameterType="FaqVO">
+        INSERT INTO faq (
+            u_id,
+            f_title,
+            f_contents
+        ) VALUES (
+            #{uId},
+            #{fTitle},
+            #{fContents}
+        )
+    </insert>
+    <!-- insert쿼리에 date 뺀 이유 : 디폴트값으로 SYSDATE가 들어가고 있기 때문에 굳이 안넣어도 됨! -->
+    <!-- 조회수는 디폴트값 0으로 들어가게함 -->
+</mapper>

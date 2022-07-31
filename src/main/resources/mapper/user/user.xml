@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.teamdmc.kemie.user">
+  
+  <resultMap type="UserVO" id="userResultMap">
+      <id      property="uId"        column="u_id"/>
+      <result  property="passwd"     column="u_pw"/>
+      <result  property="name"       column="u_name"/>
+      <result  property="pNum"       column="u_pnum"/>
+      <result  property="nick"       column="u_nick"/>
+      <result  property="type"       column="u_type"/>
+      <result  property="regDt"      column="reg_dt"/>
+  </resultMap>
+
+  <!-- 닉네임 체크 및 변경 부분 -->
+  <select id="nickCheck" parameterType="UserVO" resultType="int">
+    SELECT COUNT(*) cnt
+    FROM user_info
+    WHERE u_nick = #{nick}
+  </select>
+  
+  <update id="doNickUpdate" parameterType="UserVO">
+    UPDATE user_info
+    SET u_nick = #{nick}
+    WHERE u_id = #{uId}
+  </update>
+  
+  <!-- 비밀번호 체크 및 변경 부분  -->
+  <select id="passCheck" parameterType="UserVO" resultType="int">
+    SELECT COUNT(*) cnt
+    FROM user_info
+    WHERE u_id = #{uId} AND u_pw = #{passwd}
+  </select>
+  
+  <update id="doPassUpdate" parameterType="UserVO">
+    UPDATE user_info
+    SET u_pw = #{passwd}
+    WHERE u_id = #{uId}
+  </update>
+  
+  <!-- 아이디 찾기 -->
+  <select id="doFindID" parameterType="UserVO" resultMap="userResultMap">
+    SELECT u_id
+    FROM user_info
+    WHERE u_name = #{name} 
+    AND u_pnum = #{pNum}
+  </select>
+  
+  <!-- 비밀번호 찾기 -->
+  <update id="doUpdatePW" parameterType="UserVO">
+    UPDATE user_info
+    SET u_pw = #{passwd}
+    WHERE u_id = #{uId}
+    AND u_name = #{name}
+    AND u_pnum = #{pNum}
+  </update>
+  
+  <select id="nameCheck" parameterType="UserVO" resultType="int">
+    SELECT COUNT(*) cnt
+    FROM user_info
+    WHERE u_name = #{name}
+  </select>
+  
+  <select id="pNumCheck" parameterType="UserVO" resultType="int">
+    SELECT COUNT(*) cnt
+    FROM user_info
+    WHERE u_pnum = #{pNum}
+  </select>
+  
+  <!-- ID중복 check -->
+  <select id="loginCheck" parameterType="UserVO" resultType="int">
+    SELECT COUNT(*) cnt
+    FROM user_info
+    WHERE u_id = #{uId}
+    AND u_pw = #{passwd}
+  </select>
+  
+  <select id="idCheck" parameterType="UserVO" resultType="int">
+    SELECT COUNT(*) cnt
+    FROM user_info
+    WHERE u_id = #{uId}
+  </select>
+  
+  <update id="doUpdate" parameterType="UserVO">
+     UPDATE user_info       
+     SET u_id    = #{uId},     
+         u_pw    = #{passwd},     
+         u_name  = #{name},     
+         u_pnum  = #{pNum},     
+         u_nick  = #{nick},     
+         u_type  = #{type},     
+         reg_dt  = SYSDATE
+     WHERE u_id  = #{uId}   
+  </update>
+
+  <delete id="deleteAll">
+     DELETE FROM user_info
+  </delete>
+
+  <select id="getAll" parameterType="UserVO" resultType="UserVO">
+       SELECT        
+         u_id,
+         u_pw,
+         u_name,
+         u_pnum,
+         u_nick,
+         u_type,                                           
+         TO_CHAR(reg_dt,'yyyy-mm-dd hh24:mi:ss') reg_dt
+     FROM user_info                                          
+     WHERE u_id LIKE #{uId}  ||'%'                               
+     ORDER BY u_id
+  </select>
+
+  <select id="getCount" parameterType="UserVO" resultType="int">
+    SELECT COUNT(*) AS cnt    
+    FROM  user_info           
+    WHERE u_id LIKE #{uId} ||'%' 
+  </select>
+  
+  <!-- namespace+id = com.teamdmc.kemie.user.doSelectOne-->
+  <select id="doSelectOne" parameterType="UserVO" resultMap="userResultMap">
+       <![CDATA[ 
+        SELECT        
+	        u_id,
+	        u_pw,
+	        u_name,
+	        u_pnum,
+	        u_nick,
+	        u_type,                                           
+	        TO_CHAR(reg_dt,'yyyy-mm-dd hh24:mi:ss') reg_dt
+        FROM  user_info                                         
+        WHERE u_id = #{uId}
+        ]]>
+  </select>
+  
+  <delete id="doDelete" parameterType="UserVO">
+    DELETE FROM user_info
+    WHERE u_id = #{uId}
+  </delete>
+
+  <insert id="doInsert" parameterType="UserVO">
+     INSERT INTO user_info ( 
+        u_id,
+	    u_pw,
+	    u_name,
+	    u_pnum,
+	    u_nick,
+	    u_type,
+	    reg_dt         
+     ) VALUES (              
+         #{uId},                  
+         #{passwd},                  
+         #{name},                  
+         #{pNum},                  
+         #{nick},                  
+         0,                  
+         SYSDATE             
+     )      
+  </insert>
+</mapper>

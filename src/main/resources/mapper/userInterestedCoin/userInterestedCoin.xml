@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.teamdmc.kemie.userInterestedCoin">
+  
+   <resultMap type="UserInterestedVO" id="userInterestedCoinResultMap">
+      <id      property="uicIndex"   column="uic_index"/>
+      <result  property="uicMarket" column="uic_market"/>
+      <result  property="uId"        column="u_id"/>
+  </resultMap>
+    
+  <!-- namespace+id = com.teamdmc.kemie.user.doSelectOne-->
+  <delete id="doDelete" parameterType="UserInterestedVO">
+    DELETE FROM user_interested_coin
+    WHERE u_id = #{uId}
+    AND uic_market = #{uicMarket}
+  </delete>
+
+  <select id="getAll" parameterType="UserInterestedVO" resultMap="userInterestedCoinResultMap">
+     SELECT uic_index,
+            uic_market,
+            u_id
+     FROM user_interested_coin
+     WHERE u_id = #{uId}
+  </select>
+
+  <select id="uICCheck" parameterType="UserInterestedVO" resultType="int">
+     SELECT COUNT(*)
+   FROM user_interested_coin
+   WHERE u_id = #{uId}
+   AND uic_market = #{uicMarket}
+  </select>
+
+  <insert id="doInsert" parameterType="UserInterestedVO">
+     INSERT INTO user_interested_coin ( 
+        uic_market,
+        u_id
+     ) VALUES (   
+         #{uicMarket},                  
+         #{uId}              
+     )      
+  </insert>
+</mapper>
